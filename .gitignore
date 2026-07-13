@@ -1,0 +1,130 @@
+# ========== Typecho 核心忽略 ==========
+# 缓存目录
+var/cache/*
+!var/cache/.gitkeep
+
+# 上传文件
+usr/uploads/*
+!usr/uploads/.gitkeep
+
+# 数据库
+*.sqlite
+*.db
+usr/db.sqlite
+
+# 配置文件 (含敏感信息)
+config.inc.php
+*.env
+.env
+.env.*
+!.env.example
+
+# 密钥/证书
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# 备份文件
+*.bak
+*.backup
+*.sql.gz
+*.tar.gz
+*.zip
+
+# ========== 系统/编辑器 ==========
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# 编辑器/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# 编译产物
+*.log
+*.cache
+*.tmp
+*.temp
+
+# ========== 部署产物 ==========
+# 生成的静态文件 (由 CI/CD 生成)
+sitemap.xml
+feed.json
+indexnow-key.txt
+
+# 部署脚本生成
+deploy.log
+deploy-*.log
+
+# ========== 测试/覆盖率 ==========
+coverage/
+.nyc_output/
+.phpunit.result.cache
+
+# ========== Composer ==========
+vendor/
+composer.phar
+
+# ========== Node.js ==========
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ========== Docker ==========
+.dockerignore
+Dockerfile*
+docker-compose*.yml
+!docker-compose.example.yml
+
+# ========== 部署工具 ==========
+.deployer/
+deployer.phar
+
+# ========== 监控/分析 ==========
+# Sentry 等上传的 sourcemap
+*.map
+
+# ========== 文档生成 ==========
+_site/
+docs/.vuepress/dist/
+
+# ========== 临时文件 ==========
+*.tmp
+*.temp
+.tmp/
+temp/
+
+# ========== 特定忽略 ==========
+# Typecho 安装锁
+install.lock
+install.php
+
+# Let's Encrypt 验证
+.well-known/acme-challenge/
+
+# 宝塔面板
+.user.ini
+
+# IDE 配置
+.phpstorm.meta.php

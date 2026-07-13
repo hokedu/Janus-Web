@@ -1,0 +1,235 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: '部署环境'
+        type: choice
+        options:
+          - staging
+          - production
+        required: true
+        default: 'staging'
+
+jobs:
+  # ========== 代码质量检查 ==========
+  lint:
+    name: Code Quality Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, pdo, pdo_mysql, curl, gd, openssl, json, xml, zip
+          ini-values: max_execution_time=60, memory_limit=256M
+
+      - name: Validate PHP syntax
+        run: |
+          find . -name "*.php" -not -path "./vendor/*" -exec php -l {} \; 2>&1 | grep -v "No syntax errors" || true
+
+      - name: Check for syntax errors
+        run: |
+          if find . -name "*.php" -not -path "./vendor/*" -exec php -l {} \; 2>&1 | grep -q "Parse error"; then
+            echo "❌ 发现语法错误"
+            exit 1
+          else
+            echo "✅ PHP 语法检查通过"
+          fi
+
+      - name: Check for common issues
+        run: |
+          # 检查是否有硬编码的敏感信息
+          if grep -r "password\|secret\|api_key" --include="*.php" --exclude-dir=vendor . | grep -v "\.example\|\.test\|// \|\* " | grep -v "getenv\|\$_ENV\|getenv" | head -5; then
+            echo "⚠️ 发现可能的硬编码敏感信息，请检查"
+          fi
+
+  # ========== 部署到预发布环境 ==========
+  deploy-staging:
+    name: Deploy to Staging
+    needs: lint
+    if: github.ref == 'refs/heads/develop' || github.event.inputs.environment == 'staging'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, pdo, pdo_mysql, curl, gd, openssl, json, xml, zip
+          ini-values: max_execution_time=60, memory_limit=256M
+
+      - name: Install Deployer
+        run: |
+          composer global require deployer/deployer --no-interaction --prefer-dist
+          echo "${{ runner.tool_cache }}/composer/vendor/bin" >> $GITHUB_PATH
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy to Staging
+        run: |
+          dep deploy staging -vvv
+        env:
+          DEPLOYER_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Smoke Test - Staging
+        run: |
+          sleep 5
+          curl -f -s -o /dev/null -w "%{http_code}" https://staging.janusbanana.com.cn/ | grep -q "200"
+
+  # ========== 部署到生产环境 ==========
+  deploy-production:
+    name: Deploy to Production
+    needs: [lint, deploy-staging]
+    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'production'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, pdo, pdo_mysql, curl, gd, openssl, json, xml, zip
+          ini-values: max_execution_time=60, memory_limit=256M
+
+      - name: Install Deployer
+        run: |
+          composer global require deployer/deployer --no-interaction --prefer-dist
+          echo "${{ runner.tool_cache }}/composer/vendor/bin" >> $GITHUB_PATH
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy to Production
+        run: |
+          dep deploy production -vvv
+        env:
+          DEPLOYER_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Smoke Test - Production
+        run: |
+          sleep 5
+          curl -f -s -o /dev/null -w "%{http_code}" https://janusbanana.com.cn/ | grep -q "200"
+
+      - name: Verify Critical Pages
+        run: |
+          # 检查关键页面
+          for url in "https://janusbanana.com.cn/" "https://janusbanana.com.cn/sitemap.xml" "https://janusbanana.com.cn/feed.json"; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "$url")
+            if [ "$code" != "200" ]; then
+              echo "❌ $url 返回 $code"
+              exit 1
+            fi
+            echo "✅ $url - OK"
+          done
+
+      - name: Verify Schema.org Structured Data
+        run: |
+          # 验证首页包含 Schema.org 数据
+          schemas=$(curl -s https://janusbanana.com.cn/ | grep -c 'application/ld+json')
+          if [ "$schemas" -lt 3 ]; then
+            echo "❌ Schema.org 结构化数据不足 (当前: $schemas)"
+            exit 1
+          fi
+          echo "✅ Schema.org 结构化数据: $schemas 个"
+
+  # ========== 部署通知 ==========
+  notify:
+    name: Notify
+    needs: [deploy-production]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Success
+        if: success()
+        run: |
+          echo "✅ 部署成功"
+          echo "🌐 网站: https://janusbanana.com.cn/"
+          echo "📦 版本: ${{ github.sha }}"
+          echo "👤 部署者: ${{ github.actor }}"
+          # 可在此添加钉钉/企微/飞书/Slack 通知
+
+      - name: Notify Failure
+        if: failure()
+        run: |
+          echo "❌ 部署失败"
+          echo "🔗 查看详情: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          # 可在此添加钉钉/企微/飞书/Slack 通知
+
+  # ========== 回滚工作流 (手动触发) ==========
+  rollback:
+    name: Emergency Rollback
+    on:
+      workflow_dispatch:
+        inputs:
+          environment:
+            description: '回滚环境'
+            type: choice
+            options:
+              - staging
+              - production
+            required: true
+          target_version:
+            description: '目标版本 (可选，默认回滚到上一版本)'
+            required: false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+
+      - name: Install Deployer
+        run: |
+          composer global require deployer/deployer --no-interaction --prefer-dist
+          echo "${{ runner.tool_cache }}/composer/vendor/bin" >> $GITHUB_PATH
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Execute Rollback
+        run: |
+          dep rollback ${{ github.event.inputs.environment }} ${{ github.event.inputs.target_version }} -vvv
+        env:
+          DEPLOYER_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Verify After Rollback
+        run: |
+          sleep 3
+          if [ "${{ github.event.inputs.environment }}" = "production" ]; then
+            curl -f https://janusbanana.com.cn/
+          else
+            curl -f https://staging.janusbanana.com.cn/
+          fi

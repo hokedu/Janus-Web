@@ -1,0 +1,37 @@
+# AI 搜索引擎爬虫白名单
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: DeepSeekBot
+Allow: /
+
+User-agent: KimiBot
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: YisouSpider
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: bingbot
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+
+# 通用规则
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /usr/
+Disallow: /var/
+
+# Sitemap
+Sitemap: https://janusbanana.com.cn/sitemap.xml
