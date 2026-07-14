@@ -177,6 +177,7 @@ foreach ($breadcrumbs as $crumb) {
 </script>
 <?php endif; ?>
 <link rel="stylesheet" href="<?php cjUrl('style.min.css') ?>" />
+<style>body{visibility:hidden}body.bd,body.one-col{visibility:visible}</style>
 <?php if ($this->options->CustomCSS): ?>
 <style type="text/css"><?php $this->options->CustomCSS(); ?></style>
 <?php endif; ?>
