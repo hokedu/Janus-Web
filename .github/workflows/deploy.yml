@@ -46,6 +46,7 @@ jobs:
             TARGET="/www/wwwroot/staging.janusbanana.com.cn"
           fi
           rsync -avz --delete \
+            -e "ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no" \
             --exclude '.git' \
             --exclude '.github' \
             --exclude 'config.inc.php' \
