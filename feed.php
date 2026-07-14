@@ -5,8 +5,10 @@
  * 兼容：https://www.jsonfeed.org/version/1.1/
  */
 
-define('__TYPECHO_ROOT_DIR__', __DIR__ . '/janusbanana.com.cn');
 require_once __DIR__ . '/config.inc.php';
+if (!defined('__TYPECHO_ROOT_DIR__')) {
+    define('__TYPECHO_ROOT_DIR__', __DIR__ . '/var');
+}
 
 Typecho_Common::init();
 $options = Typecho_Widget::widget('Widget_Options');
@@ -25,7 +27,7 @@ $posts = $db->fetchAll($db->select()->from('table.contents')
 
 $items = array();
 foreach ($posts as $post) {
-    $permalink = $siteUrl . $post['slug'] . '.html';
+    $permalink = rtrim($siteUrl, '/') . '/' . date('Y/m/d', $post['created']) . '/' . $post['slug'] . '.html';
     
     // 摘要
     $excerpt = $post['text'];
@@ -65,15 +67,15 @@ foreach ($posts as $post) {
 $feed = array(
     'version' => 'https://jsonfeed.org/version/1.1',
     'title' => $siteTitle,
-    'home_page_url' => $siteUrl,
-    'feed_url' => $siteUrl . '/feed.json',
+    'home_page_url' => rtrim($siteUrl, '/') . '/',
+    'feed_url' => rtrim($siteUrl, '/') . '/feed.json',
     'description' => $siteDesc,
-    'icon' => $siteUrl . '/usr/themes/initial/logo.png',
-    'favicon' => $siteUrl . '/usr/themes/initial/logo.png',
+    'icon' => rtrim($siteUrl, '/') . '/usr/themes/initial/logo.png',
+    'favicon' => rtrim($siteUrl, '/') . '/usr/themes/initial/logo.png',
     'author' => array(
-        'name' => 'Janus',
-        'url' => $siteUrl,
-        'avatar' => $siteUrl . '/usr/themes/initial/logo.png'
+        'name' => $options->title ?: 'Janus',
+        'url' => rtrim($siteUrl, '/') . '/',
+        'avatar' => rtrim($siteUrl, '/') . '/usr/themes/initial/logo.png'
     ),
     'language' => 'zh-CN',
     'items' => $items

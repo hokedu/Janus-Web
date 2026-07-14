@@ -5,8 +5,10 @@
  * 宝塔计划任务：每天 03:00 执行 php /www/wwwroot/janusbanana.com.cn/sitemap.php > /www/wwwroot/janusbanana.com.cn/sitemap.xml
  */
 
-define('__TYPECHO_ROOT_DIR__', __DIR__ . '/janusbanana.com.cn');
 require_once __DIR__ . '/config.inc.php';
+if (!defined('__TYPECHO_ROOT_DIR__')) {
+    define('__TYPECHO_ROOT_DIR__', __DIR__ . '/var');
+}
 
 Typecho_Common::init();
 $options = Typecho_Widget::widget('Widget_Options');

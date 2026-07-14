@@ -649,23 +649,8 @@ function postSchema($archive) {
     $authorName = $archive->author();
     $authorUrl = $archive->author->permalink;
 
-    // FAQ 解析
-    $faqItems = array();
-    if (!empty($archive->fields->faq_group)) {
-        $lines = preg_split('/\r\n|\r|\n/', $archive->fields->faq_group);
-        $q = null;
-        foreach ($lines as $line) {
-            $line = trim($line);
-            if ($line === '') continue;
-            if ($q === null) {
-                $q = $line;
-            } else {
-                $faqItems[] = array('q' => $q, 'a' => $line);
-                $q = null;
-                if (count($faqItems) >= 3) break;
-            }
-        }
-    }
+    // FAQ 解析（调用统一函数）
+    $faqItems = parseFaqGroup($archive->fields->faq_group);
 
     // 构建 JSON-LD
     $schema = array(
@@ -699,7 +684,7 @@ function postSchema($archive) {
             'url' => $siteUrl,
             'logo' => array(
                 '@type' => 'ImageObject',
-                'url' => $siteUrl . 'usr/themes/initial/logo.png'
+                'url' => rtrim($siteUrl, '/') . '/usr/themes/initial/logo.png'
             ),
             'sameAs' => array('https://www.zhihu.com/people/janus-85-60')
         ),
@@ -729,28 +714,7 @@ function postSchema($archive) {
     echo '<script type="application/ld+json">' . PHP_EOL;
     echo json_encode($schema, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . PHP_EOL;
     echo '</script>' . PHP_EOL;
-
-    // 输出 FAQPage Schema（如有 FAQ）
-    if (!empty($faqItems)) {
-        $faqSchema = array(
-            '@context' => 'https://schema.org',
-            '@type' => 'FAQPage',
-            'mainEntity' => array()
-        );
-        foreach ($faqItems as $item) {
-            $faqSchema['mainEntity'][] = array(
-                '@type' => 'Question',
-                'name' => $item['q'],
-                'acceptedAnswer' => array(
-                    '@type' => 'Answer',
-                    'text' => $item['a']
-                )
-            );
-        }
-        echo '<script type="application/ld+json">' . PHP_EOL;
-        echo json_encode($faqSchema, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . PHP_EOL;
-        echo '</script>' . PHP_EOL;
-    }
+    // FAQPage Schema 由 component/faq-hidden.php 统一输出
 }
 
 /**
@@ -776,25 +740,6 @@ function parseFaqGroup($text) {
 }
 
 /**
- * FAQ 短代码 [faq q="问题" a="回答"] - 兼容旧文章手动插入
- * 用法：在文章内容中写 [faq q="近视手术后会反弹吗？" a="正规手术后屈光状态通常稳定..."]
- */
-function shortcode_faq($text) {
-    return preg_replace_callback(
-        '/\[faq\s+q="([^"]+)"\s+a="([^"]+)"\]/i',
-        function($matches) {
-            return '<div class="faq-item" style="display:none;" itemscope itemtype="https://schema.org/Question">
-                <meta itemprop="name" content="' . htmlspecialchars($matches[1]) . '" />
-                <div itemprop="acceptedAnswer" itemscope itemtype="https://schema.org/Answer">
-                    <meta itemprop="text" content="' . htmlspecialchars($matches[2]) . '" />
-                </div>
-            </div>';
-        },
-        $text
-    );
-}
-
-/**
  * 发文时自动推送 IndexNow
  * 挂钩：content.publishAfter
  */
@@ -808,8 +753,8 @@ function pushIndexNow($archive) {
     if (empty($key)) return;
 
     $url = $archive->permalink();
-    $host = 'janusbanana.com.cn';
-    $keyLocation = "https://{$host}/indexnow-key.txt";
+    $host = parse_url($url, PHP_URL_HOST);
+    $keyLocation = rtrim(Helper::options()->siteUrl(), '/') . '/indexnow-key.txt';
 
     $data = array(
         'host' => $host,
@@ -825,10 +770,16 @@ function pushIndexNow($archive) {
         CURLOPT_HTTPHEADER => array('Content-Type: application/json'),
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT => 10,
-        CURLOPT_SSL_VERIFYPEER => false
+        CURLOPT_SSL_VERIFYPEER => true
     ));
-    curl_exec($ch);
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
+
+    // 仅记录非成功响应
+    if ($httpCode != 200) {
+        error_log("IndexNow push failed: HTTP $httpCode, response: $response");
+    }
 }
 
 // IndexNow 推送钩子已移至 themeInit() 中注册，避免提前加载 Typecho_Plugin 导致 500
