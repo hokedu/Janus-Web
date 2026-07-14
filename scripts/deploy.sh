@@ -24,7 +24,7 @@ cd /tmp/Janus-Web
 echo "=== 同步到 $ENV ==="
 rsync -avz --delete \
   --exclude '.git' --exclude '.github' --exclude 'config.inc.php' \
-  --exclude 'usr/uploads' --exclude 'var/cache' \
+  --exclude 'usr/uploads' --exclude 'var/cache' --exclude 'indexnow-key.txt' \
   --exclude '*.log' --exclude '*.bak' --exclude 'deploy.php' \
   ./ "$TARGET/"
 
