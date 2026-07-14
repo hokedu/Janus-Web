@@ -1,0 +1,91 @@
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+  manual: true
+
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy to staging
+        run: |
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no" \
+            --exclude '.git' \
+            --exclude '.gitee-ci.yml' \
+            --exclude '.github' \
+            --exclude 'config.inc.php' \
+            --exclude 'usr/uploads' \
+            --exclude 'var/cache' \
+            --exclude '*.log' \
+            --exclude '*.bak' \
+            --exclude 'deploy.php' \
+            ./ ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/www/wwwroot/staging.janusbanana.com.cn/
+
+      - name: Post-deploy tasks
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "
+            cd /www/wwwroot/staging.janusbanana.com.cn
+            php sitemap.php > sitemap.xml 2>/dev/null || true
+            php feed.php > feed.json 2>/dev/null || true
+            chown -R www:www .
+          "
+
+      - name: Health check
+        run: |
+          sleep 3
+          curl -sf -o /dev/null -w "%{http_code}" http://staging.janusbanana.com.cn/ | grep -q "200" && echo "staging OK"
+
+  deploy-production:
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy to production
+        run: |
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no" \
+            --exclude '.git' \
+            --exclude '.gitee-ci.yml' \
+            --exclude '.github' \
+            --exclude 'config.inc.php' \
+            --exclude 'usr/uploads' \
+            --exclude 'var/cache' \
+            --exclude '*.log' \
+            --exclude '*.bak' \
+            --exclude 'deploy.php' \
+            ./ ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/www/wwwroot/janusbanana.com.cn/
+
+      - name: Post-deploy tasks
+        run: |
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "
+            cd /www/wwwroot/janusbanana.com.cn
+            php sitemap.php > sitemap.xml 2>/dev/null || true
+            php feed.php > feed.json 2>/dev/null || true
+            chown -R www:www .
+          "
+
+      - name: Health check
+        run: |
+          sleep 3
+          curl -sf -o /dev/null -w "%{http_code}" https://janusbanana.com.cn/ | grep -q "200" && echo "production OK"
