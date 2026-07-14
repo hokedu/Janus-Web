@@ -106,27 +106,31 @@
 </script>
 <?php
 // BreadcrumbList Schema - 所有页面通用
+// 用 output buffering 防止 Typecho 的 echo 方法泄露文字
+ob_start();
 $breadcrumbs = array(
     array('name' => '首页', 'url' => $this->options->siteUrl())
 );
+$archiveTitle = $this->getArchiveTitle();
 if ($this->is('post')) {
     $breadcrumbs[] = array('name' => $this->category(',', false), 'url' => $this->category(',', false, true));
     $breadcrumbs[] = array('name' => $this->title(), 'url' => $this->permalink());
 } elseif ($this->is('page')) {
     $breadcrumbs[] = array('name' => $this->title(), 'url' => $this->permalink());
 } elseif ($this->is('category')) {
-    $breadcrumbs[] = array('name' => $this->getArchiveTitle(), 'url' => $this->permalink());
+    $breadcrumbs[] = array('name' => $archiveTitle, 'url' => $this->permalink());
 } elseif ($this->is('tag')) {
-    $breadcrumbs[] = array('name' => '标签: ' . $this->getArchiveTitle(), 'url' => $this->permalink());
+    $breadcrumbs[] = array('name' => '标签: ' . $archiveTitle, 'url' => $this->permalink());
 } elseif ($this->is('date')) {
-    $breadcrumbs[] = array('name' => $this->getArchiveTitle(), 'url' => $this->permalink());
+    $breadcrumbs[] = array('name' => $archiveTitle, 'url' => $this->permalink());
 } elseif ($this->is('author')) {
-    $breadcrumbs[] = array('name' => '作者: ' . $this->getArchiveTitle(), 'url' => $this->permalink());
+    $breadcrumbs[] = array('name' => '作者: ' . $archiveTitle, 'url' => $this->permalink());
 } elseif ($this->is('search')) {
-    $breadcrumbs[] = array('name' => '搜索: ' . $this->getArchiveTitle(), 'url' => $this->permalink());
+    $breadcrumbs[] = array('name' => '搜索: ' . $archiveTitle, 'url' => $this->permalink());
 } elseif ($this->is('archive')) {
-    $breadcrumbs[] = array('name' => '归档: ' . $this->getArchiveTitle(), 'url' => $this->permalink());
+    $breadcrumbs[] = array('name' => '归档: ' . $archiveTitle, 'url' => $this->permalink());
 }
+ob_end_clean();
 $breadcrumbList = array('@context' => 'https://schema.org', '@type' => 'BreadcrumbList', 'itemListElement' => array());
 $position = 1;
 foreach ($breadcrumbs as $crumb) {
@@ -177,7 +181,6 @@ foreach ($breadcrumbs as $crumb) {
 </script>
 <?php endif; ?>
 <link rel="stylesheet" href="<?php cjUrl('style.min.css') ?>" />
-<style>body{visibility:hidden}body.bd,body.one-col{visibility:visible}</style>
 <?php if ($this->options->CustomCSS): ?>
 <style type="text/css"><?php $this->options->CustomCSS(); ?></style>
 <?php endif; ?>
