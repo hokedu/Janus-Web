@@ -105,32 +105,39 @@
 }
 </script>
 <?php
-// BreadcrumbList Schema - 所有页面通用
-// 用 output buffering 防止 Typecho 的 echo 方法泄露文字
-ob_start();
-$breadcrumbs = array(
-    array('name' => '首页', 'url' => $this->options->siteUrl())
-);
+// BreadcrumbList Schema - 用 ob 捕获 Typecho echo 输出
+$breadcrumbs = array(array('name' => '首页', 'url' => $this->options->siteUrl));
 $archiveTitle = $this->getArchiveTitle();
 if ($this->is('post')) {
-    $breadcrumbs[] = array('name' => $this->category(',', false), 'url' => $this->category(',', false, true));
-    $breadcrumbs[] = array('name' => $this->title(), 'url' => $this->permalink());
+    ob_start(); $this->category(',', false); $catName = ob_get_clean();
+    ob_start(); $this->category(',', false, true); $catUrl = ob_get_clean();
+    $breadcrumbs[] = array('name' => $catName, 'url' => $catUrl);
+    ob_start(); $this->title(); $postTitle = ob_get_clean();
+    ob_start(); $this->permalink(); $postUrl = ob_get_clean();
+    $breadcrumbs[] = array('name' => $postTitle, 'url' => $postUrl);
 } elseif ($this->is('page')) {
-    $breadcrumbs[] = array('name' => $this->title(), 'url' => $this->permalink());
+    ob_start(); $this->title(); $pageTitle = ob_get_clean();
+    ob_start(); $this->permalink(); $pageUrl = ob_get_clean();
+    $breadcrumbs[] = array('name' => $pageTitle, 'url' => $pageUrl);
 } elseif ($this->is('category')) {
-    $breadcrumbs[] = array('name' => $archiveTitle, 'url' => $this->permalink());
+    ob_start(); $this->permalink(); $url = ob_get_clean();
+    $breadcrumbs[] = array('name' => $archiveTitle, 'url' => $url);
 } elseif ($this->is('tag')) {
-    $breadcrumbs[] = array('name' => '标签: ' . $archiveTitle, 'url' => $this->permalink());
+    ob_start(); $this->permalink(); $url = ob_get_clean();
+    $breadcrumbs[] = array('name' => '标签: ' . $archiveTitle, 'url' => $url);
 } elseif ($this->is('date')) {
-    $breadcrumbs[] = array('name' => $archiveTitle, 'url' => $this->permalink());
+    ob_start(); $this->permalink(); $url = ob_get_clean();
+    $breadcrumbs[] = array('name' => $archiveTitle, 'url' => $url);
 } elseif ($this->is('author')) {
-    $breadcrumbs[] = array('name' => '作者: ' . $archiveTitle, 'url' => $this->permalink());
+    ob_start(); $this->permalink(); $url = ob_get_clean();
+    $breadcrumbs[] = array('name' => '作者: ' . $archiveTitle, 'url' => $url);
 } elseif ($this->is('search')) {
-    $breadcrumbs[] = array('name' => '搜索: ' . $archiveTitle, 'url' => $this->permalink());
+    ob_start(); $this->permalink(); $url = ob_get_clean();
+    $breadcrumbs[] = array('name' => '搜索: ' . $archiveTitle, 'url' => $url);
 } elseif ($this->is('archive')) {
-    $breadcrumbs[] = array('name' => '归档: ' . $archiveTitle, 'url' => $this->permalink());
+    ob_start(); $this->permalink(); $url = ob_get_clean();
+    $breadcrumbs[] = array('name' => '归档: ' . $archiveTitle, 'url' => $url);
 }
-ob_end_clean();
 $breadcrumbList = array('@context' => 'https://schema.org', '@type' => 'BreadcrumbList', 'itemListElement' => array());
 $position = 1;
 foreach ($breadcrumbs as $crumb) {
