@@ -180,6 +180,18 @@ foreach ($breadcrumbs as $crumb) {
 <?php if ($this->options->CustomCSS): ?>
 <style type="text/css"><?php $this->options->CustomCSS(); ?></style>
 <?php endif; ?>
+<style>
+#secondary {
+    position: -webkit-sticky;
+    position: sticky;
+    top: 80px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+}
+@media (max-width: 768px) {
+    #secondary { position: static; display: none; }
+}
+</style>
 </head>
 <body class="<?php if ($this->options->OneCOL): ?>one-col<?php else: ?>bd<?php endif; if ($this->options->HeadFixed): ?> head-fixed<?php endif; ?>">
 <!--[if lt IE 9]>
